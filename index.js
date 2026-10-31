@@ -69,6 +69,16 @@ async function startServer() {
       }
     });
 
+    app.patch('/studios/:id', async (req, res) => {
+      const { id } = req.params;
+      const updateData = req.body;
+      const result = await studioCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData },
+      );
+      res.json(result);
+    });
+
     app.get('/', (req, res) => {
       res.send({ message: 'Server is running fine!' });
     });
