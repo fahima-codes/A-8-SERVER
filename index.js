@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { MongoClient, ObjectId } from 'mongodb'; // <-- ObjectId add koro
+import { MongoClient, ObjectId } from 'mongodb';
 import 'dotenv/config';
 
 const app = express();
@@ -16,7 +16,6 @@ if (!mongoUrl) {
 }
 
 const client = new MongoClient(mongoUrl);
-
 let studioCollection;
 
 async function startServer() {
@@ -45,38 +44,82 @@ async function startServer() {
     });
 
     app.get('/studios', async (req, res) => {
-      const result = await studioCollection.find().toArray();
-      res.send(result);
+      try {
+        const studios = await studioCollection.find().toArray();
+        res.send(studios);
+      } catch (error) {
+        console.error('Failed to load studios:', error);
+        res.status(500).send({ message: 'Failed to load studios' });
+      }
     });
 
-    // FIXED ROUTE - 100% kaj korbe
     app.get('/studios/:id', async (req, res) => {
       try {
-        const id = req.params.id; // <-- req.params
-        console.log('Finding ID:', id);
-        const result = await studioCollection.findOne({
-          _id: new ObjectId(id),
+        if (!ObjectId.isValid(req.params.id)) {
+          return res.status(400).send({ message: 'Invalid studio ID' });
+        }
+
+        const studio = await studioCollection.findOne({
+          _id: new ObjectId(req.params.id),
         });
 
-        if (!result) {
+        if (!studio) {
           return res.status(404).send({ message: 'Studio not found' });
         }
 
-        res.send(result);
+        res.send(studio);
       } catch (error) {
-        console.error(error);
-        res.status(500).send({ message: 'Invalid ID format' });
+        console.error('Failed to find studio:', error);
+        res.status(500).send({ message: 'Failed to find studio' });
       }
     });
 
     app.patch('/studios/:id', async (req, res) => {
-      const { id } = req.params;
-      const updateData = req.body;
-      const result = await studioCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updateData },
-      );
-      res.json(result);
+      try {
+        if (!ObjectId.isValid(req.params.id)) {
+          return res.status(400).send({ message: 'Invalid studio ID' });
+        }
+
+        const { _id, ...updateData } = req.body;
+
+        const result = await studioCollection.updateOne(
+          { _id: new ObjectId(req.params.id) },
+          { $set: updateData },
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: 'Studio not found' });
+        }
+
+        res.send({
+          message: 'Studio updated successfully',
+          modifiedCount: result.modifiedCount,
+        });
+      } catch (error) {
+        console.error('Failed to update studio:', error);
+        res.status(500).send({ message: 'Failed to update studio' });
+      }
+    });
+
+    app.delete('/studios/:id', async (req, res) => {
+      try {
+        if (!ObjectId.isValid(req.params.id)) {
+          return res.status(400).send({ message: 'Invalid studio ID' });
+        }
+
+        const result = await studioCollection.deleteOne({
+          _id: new ObjectId(req.params.id),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: 'Studio not found' });
+        }
+
+        res.send({ message: 'Studio deleted successfully' });
+      } catch (error) {
+        console.error('Failed to delete studio:', error);
+        res.status(500).send({ message: 'Failed to delete studio' });
+      }
     });
 
     app.get('/', (req, res) => {
