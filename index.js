@@ -28,8 +28,7 @@ const client = new MongoClient(mongoUrl);
 let studioCollection;
 let bookingCollection;
 
-// Better Auth JWT-র Authorization: Bearer <token> যাচাই করে
-const verifyApi = async (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   const authorization = req.headers.authorization;
   const token = authorization?.startsWith('Bearer ')
     ? authorization.slice('Bearer '.length)
@@ -38,8 +37,6 @@ const verifyApi = async (req, res, next) => {
   if (!token) {
     return res.status(401).send({ msg: 'Missing Bearer token' });
   }
-
-  console.log('Authorization header received:', Boolean(authorization));
 
   try {
     await jwtVerify(token, JWKS, {
@@ -64,9 +61,7 @@ async function startServer() {
     studioCollection = db.collection('studios');
     bookingCollection = db.collection('bookings');
 
-    // --- STUDIOS ---
-
-    app.post('/add-studio', async (req, res) => {
+    app.post('/add-studio', verifyToken, async (req, res) => {
       try {
         const result = await studioCollection.insertOne({
           ...req.body,
@@ -96,8 +91,7 @@ async function startServer() {
       }
     });
 
-    // এই route-এ valid Better Auth JWT লাগবে
-    app.get('/studios/:id', verifyApi, async (req, res) => {
+    app.get('/studios/:id', verifyToken, async (req, res) => {
       try {
         if (!ObjectId.isValid(req.params.id)) {
           return res.status(400).send({ message: 'Invalid ID' });
@@ -158,8 +152,6 @@ async function startServer() {
         res.status(500).send({ message: 'Failed to delete studio' });
       }
     });
-
-    // --- BOOKINGS ---
 
     app.post('/bookings', async (req, res) => {
       try {
